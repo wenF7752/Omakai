@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+/* omakai.food — Yuzu Sticker design tokens · 2026-04-24 */
+/* ─────────────── Yuzu Sticker design tokens ─────────────── */
+
+:root {
+  --a-cream: #fdf6e8;
+  --a-mist: #f3e8d2;
+  --a-peach: #ffb89a;
+  --a-peach-deep: #ff8a5c;
+  --a-butter: #f7d65a;
+  --a-sage: #b6cfa3;
+  --a-sage-deep: #7ea36a;
+  --a-ink: #2a1f17;
+}
+
+/* Expose Yuzu palette as Tailwind 4 utilities (bg-cream, text-ink, etc.). */
+@theme inline {
+  --color-cream: var(--a-cream);
+  --color-mist: var(--a-mist);
+  --color-peach: var(--a-peach);
+  --color-peach-deep: var(--a-peach-deep);
+  --color-butter: var(--a-butter);
+  --color-sage: var(--a-sage);
+  --color-sage-deep: var(--a-sage-deep);
+  --color-ink: var(--a-ink);
+}
+
+/* ─────────────── Base body ─────────────── */
+
+body {
+  background: var(--a-cream);
+  color: var(--a-ink);
+  font-family: var(--font-zen-kaku), system-ui, sans-serif;
+}
+
+/* ─────────────── Font utility classes (mirror mockup conventions) ─────────────── */
+
+.display {
+  font-family: var(--font-fraunces), serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 0.92;
+}
+
+.mono {
+  font-family: var(--font-dm-mono), monospace;
+}
+
+/* ─────────────── Keyframes (ported verbatim from design/mockups/styles.css) ─────────────── */
+
+@keyframes wobble {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+}
+
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+@keyframes steam {
+  0% { transform: translateY(0) scaleX(1); opacity: 0; }
+  20% { opacity: 0.7; }
+  100% { transform: translateY(-30px) scaleX(1.4); opacity: 0; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0.8); opacity: 0; }
+  60% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0.2; }
+}
+
+/* ─────────────── Animation utility classes ─────────────── */
+
+.wobble { animation: wobble 3s ease-in-out infinite; }
+.float-y { animation: float-y 2.4s ease-in-out infinite; }
+.spin-slow { animation: spin-slow 8s linear infinite; }
+.pulse-ring { animation: pulse-ring 1.6s ease-out infinite; }
+.steam { animation: steam 2s ease-in-out infinite; }
+.slide-up { animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+.pop-in { animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards; }
+.marquee { animation: marquee 22s linear infinite; }
+.blink { animation: blink 1s step-end infinite; }
+
+/* ─────────────── Sticker shadow utility ─────────────── */
+
+.sticker {
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.12)) drop-shadow(0 6px 14px rgba(0, 0, 0, 0.08));
+}
+
+/* ─────────────── Hide scrollbars on phone-screen-style containers ─────────────── */
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+/* ─────────────── Reduced-motion gate (CSS half; JS half lives in useReducedMotion hook) ─────────────── */
+
+[data-motion="reduce"] .wobble,
+[data-motion="reduce"] .float-y,
+[data-motion="reduce"] .spin-slow,
+[data-motion="reduce"] .pulse-ring,
+[data-motion="reduce"] .steam,
+[data-motion="reduce"] .slide-up,
+[data-motion="reduce"] .pop-in,
+[data-motion="reduce"] .marquee,
+[data-motion="reduce"] .blink {
+  animation: none;
+}

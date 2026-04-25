@@ -1,0 +1,28 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Chopsticks > renders default props 1`] = `
+<svg
+  height="18"
+  viewBox="0 0 100 30"
+  width="60"
+>
+  <rect
+    fill="var(--a-ink)"
+    height="3"
+    rx="1.5"
+    transform="rotate(-2 50 8)"
+    width="96"
+    x="2"
+    y="6"
+  />
+  <rect
+    fill="var(--a-ink)"
+    height="3"
+    rx="1.5"
+    transform="rotate(-2 50 22)"
+    width="96"
+    x="2"
+    y="20"
+  />
+</svg>
+`;

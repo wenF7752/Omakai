@@ -1,0 +1,60 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`StickerBadge > renders with required text prop 1`] = `
+<svg
+  height="100"
+  viewBox="0 0 100 100"
+  width="100"
+>
+  <defs>
+    <path
+      d="M 50,50 m -36,0 a 36,36 0 1,1 72,0 a 36,36 0 1,1 -72,0"
+      id="sticker-arc-_r_0_"
+    />
+  </defs>
+  <circle
+    cx="50"
+    cy="50"
+    fill="var(--a-peach-deep)"
+    r="44"
+  />
+  <circle
+    cx="50"
+    cy="50"
+    fill="none"
+    opacity="0.6"
+    r="38"
+    stroke="#fff"
+    stroke-dasharray="2 2"
+    stroke-width="1"
+  />
+  <text
+    class="mono"
+    fill="#fff"
+    font-size="9"
+    font-weight="700"
+    letter-spacing="2"
+  >
+    <textpath
+      href="#sticker-arc-_r_0_"
+      startOffset="0%"
+    >
+      ORDER NOW
+       · 
+      ORDER NOW
+       ·
+    </textpath>
+  </text>
+  <text
+    class="display"
+    fill="#fff"
+    font-size="14"
+    font-weight="900"
+    text-anchor="middle"
+    x="50"
+    y="56"
+  >
+    ★
+  </text>
+</svg>
+`;
