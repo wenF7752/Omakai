@@ -1,5 +1,18 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# research
+/research
+/plans
+
+# design
+/design/mockups
+/design/yuzu-mockups
+
+# mockups
+/mockups    
+/mockups-old
+
+
 # dependencies
 /node_modules
 /.pnp

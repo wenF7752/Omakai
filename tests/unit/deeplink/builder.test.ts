@@ -19,9 +19,9 @@ describe('buildDeepLink', () => {
       restaurant_url: RESTAURANT_URL,
       store_uuid: STORE,
       item_uuid: ITEM,
-      affiliate_tag: 'omakai',
+      affiliate_tag: 'omabite',
     });
-    expect(url).toBe('https://www.ubereats.com/store/koja-kitchen/abc-123/item-uuid-456?ref=omakai');
+    expect(url).toBe('https://www.ubereats.com/store/koja-kitchen/abc-123/item-uuid-456?ref=omabite');
   });
 
   it('without item_uuid returns restaurant-level URL AND warns', () => {
@@ -36,9 +36,9 @@ describe('buildDeepLink', () => {
     const url = buildDeepLink({
       restaurant_url: RESTAURANT_URL,
       store_uuid: STORE,
-      affiliate_tag: 'omakai',
+      affiliate_tag: 'omabite',
     });
-    expect(url).toBe('https://www.ubereats.com/store/koja-kitchen/abc-123?ref=omakai');
+    expect(url).toBe('https://www.ubereats.com/store/koja-kitchen/abc-123?ref=omabite');
   });
 
   it('malformed restaurant_url (non-ubereats.com) throws', () => {

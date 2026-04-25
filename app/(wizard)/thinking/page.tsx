@@ -57,7 +57,7 @@ const KIND_STYLE: Record<LogKind, { dot: string; prefix: string }> = {
 
 const TIPS: { k: string; v: string }[] = [
   { k: 'DID YOU KNOW', v: 'Tonkotsu broth simmers for 12+ hours — what’s 20 seconds?' },
-  { k: 'OMAKAI TIP', v: 'omakase = 御任せ = "I leave it up to you."' },
+  { k: 'OMABITE TIP', v: 'omakase = 御任せ = "I leave it up to you."' },
   { k: 'WHILE YOU WAIT', v: 'Set the table. Pour a drink. Trust the process.' },
   { k: 'FUN FACT', v: 'We read every menu and review snippet before picking yours.' },
   { k: 'DID YOU KNOW', v: 'Maki tastes hundreds of dishes before settling on yours.' },
@@ -188,7 +188,7 @@ function ThinkingInner() {
     >
       <div style={{ padding: '0 22px' }}>
         <div className="mono" style={{ fontSize: 10, letterSpacing: 2, opacity: 0.6 }}>
-          OMAKAI · WORKING
+          OMABITE · WORKING
         </div>
       </div>
 

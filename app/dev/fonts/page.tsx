@@ -6,7 +6,7 @@ export default function FontsSmokePage() {
   return (
     <main style={{ padding: 24 }}>
       <h1 className="display" data-testid="font-display" style={{ fontSize: 48 }}>
-        omakai picks dinner
+        omabite picks dinner
       </h1>
       <p data-testid="font-body" style={{ fontSize: 16, marginTop: 16 }}>
         the chef is choosing for you. relax.

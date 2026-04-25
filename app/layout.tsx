@@ -24,7 +24,7 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'omakai.food',
+  title: 'omabite.food',
   description: 'The chef picks. You eat.',
 };
 

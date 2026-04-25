@@ -3,7 +3,7 @@
 import type { Address, ProfilePreferences } from '@/lib/profile/types';
 import type { ValidatedRecommendation } from '@/lib/pipeline/validator';
 
-const KEY = 'omakai_result_cache';
+const KEY = 'omabite_result_cache';
 const TTL_MS = 30 * 60 * 1000;
 
 export interface CachedResult {

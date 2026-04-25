@@ -53,7 +53,7 @@ export default function SignupPage() {
           your taste?
         </h2>
         <p style={{ opacity: 0.7, maxWidth: 280, margin: '0 auto' }}>
-          Save your picks so omakai gets sharper every order.
+          Save your picks so omabite gets sharper every order.
         </p>
       </div>
 

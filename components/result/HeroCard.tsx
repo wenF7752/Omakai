@@ -63,7 +63,7 @@ export function HeroCard({
           style={{ position: 'absolute', top: 18, right: 14, transform: 'rotate(12deg)' }}
           className="sticker wobble"
         >
-          <StickerBadge text="OMAKAI" size={86} color="var(--a-butter)" textColor="var(--a-ink)" />
+          <StickerBadge text="OMABITE" size={86} color="var(--a-butter)" textColor="var(--a-ink)" />
         </div>
       </div>
 

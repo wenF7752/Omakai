@@ -9,10 +9,10 @@ describe('StickerBadge', () => {
   });
 
   it('text appears inside <textPath> element', () => {
-    const { container } = render(<StickerBadge text="OMAKAI" />);
+    const { container } = render(<StickerBadge text="OMABITE" />);
     const textPath = container.querySelector('textPath');
     expect(textPath).not.toBeNull();
-    expect(textPath?.textContent).toContain('OMAKAI');
+    expect(textPath?.textContent).toContain('OMABITE');
   });
 
   it('color and textColor props override defaults → outer <circle> fill matches color prop', () => {

@@ -2,7 +2,8 @@ import { z } from 'zod';
 import type { Profile, RecentPick } from '@/lib/profile/types';
 import type { DishId, RestaurantId } from '@/lib/types';
 
-const PROFILE_KEY = 'omakai_profile';
+const PROFILE_KEY = 'omabite_profile';
+const LEGACY_PROFILE_KEY = 'omakai_profile';
 
 const PreferencesSchema = z.object({
   cuisines: z.array(z.string()),
@@ -51,18 +52,28 @@ export function defaultProfile(): Profile {
 
 function readStorage(): Profile | null {
   if (typeof localStorage === 'undefined') return null;
-  const raw = localStorage.getItem(PROFILE_KEY);
+  let raw = localStorage.getItem(PROFILE_KEY);
+  // One-time migration from the pre-rebrand key. After the first read it is
+  // gone and only the new key is touched.
+  if (!raw) {
+    const legacy = localStorage.getItem(LEGACY_PROFILE_KEY);
+    if (legacy) {
+      localStorage.setItem(PROFILE_KEY, legacy);
+      localStorage.removeItem(LEGACY_PROFILE_KEY);
+      raw = legacy;
+    }
+  }
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as unknown;
     const validated = ProfileSchema.safeParse(parsed);
     if (!validated.success) {
-      console.warn('omakai_profile: schema mismatch, using default', validated.error.issues);
+      console.warn('omabite_profile: schema mismatch, using default', validated.error.issues);
       return null;
     }
     return validated.data as Profile;
   } catch (err) {
-    console.warn('omakai_profile: corrupt JSON, using default', err);
+    console.warn('omabite_profile: corrupt JSON, using default', err);
     return null;
   }
 }

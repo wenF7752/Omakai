@@ -13,7 +13,7 @@ export default function LandingPage() {
         style={{ position: 'absolute', top: 70, right: 18, transform: 'rotate(12deg)' }}
         className="sticker float-y"
       >
-        <StickerBadge text="OMAKAI" size={68} color="var(--a-butter)" textColor="var(--a-ink)" />
+        <StickerBadge text="OMABITE" size={68} color="var(--a-butter)" textColor="var(--a-ink)" />
       </div>
       <div
         style={{ position: 'absolute', top: 240, left: -10, transform: 'rotate(-18deg)' }}
@@ -24,7 +24,7 @@ export default function LandingPage() {
 
       <div style={{ padding: '20px 24px 0', maxWidth: 480, margin: '0 auto' }}>
         <div className="mono" style={{ fontSize: 11, letterSpacing: 2, opacity: 0.6 }}>
-          OMAKAI.FOOD
+          OMABITE.FOOD
         </div>
         <h1 className="display" style={{ fontSize: 64, margin: '12px 0 8px' }}>
           <span style={{ display: 'block' }}>just</span>

@@ -9,7 +9,7 @@ import {
 import type { RecentPick } from '@/lib/profile/types';
 import type { DishId, RestaurantId } from '@/lib/types';
 
-const PROFILE_KEY = 'omakai_profile';
+const PROFILE_KEY = 'omabite_profile';
 
 function makePick(feedback: 'nailed_it' | 'not_quite', i: number): RecentPick {
   return {
