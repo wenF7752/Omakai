@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useProfile } from '@/hooks/useProfile';
 import { useRecommendation } from '@/hooks/useRecommendation';
@@ -81,6 +81,20 @@ function currentStage(pct: number): { idx: number; stage: (typeof STAGES)[number
 }
 
 export default function ThinkingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div style={{ padding: '60px 24px', textAlign: 'center', opacity: 0.6 }}>
+          <p className="mono">cooking up the pick…</p>
+        </div>
+      }
+    >
+      <ThinkingInner />
+    </Suspense>
+  );
+}
+
+function ThinkingInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const profile = useProfile();
