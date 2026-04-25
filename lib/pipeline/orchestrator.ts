@@ -1,9 +1,9 @@
-import type { Address, ProfilePreferences } from '@/lib/profile/types';
+import type { Address, ProfilePreferences, RecentPick } from '@/lib/profile/types';
 import type { Allergen, RestaurantId, StoreUuid, AlternativeTag } from '@/lib/types';
 import type { BraveResult } from '@/lib/brave/types';
 import type { ApifyError, Menu, RestaurantCandidate } from '@/lib/apify/types';
 import type { RestaurantPick } from '@/lib/kimi/schemas';
-import type { AlternativeOption, PipelineEvent } from '@/lib/pipeline/events';
+import type { AlternativeOption, LogEntry, LogKind, LogStage, PipelineEvent } from '@/lib/pipeline/events';
 import { searchReviews, searchUberEatsNear } from '@/lib/brave/client';
 import { pickCandidates, pickDish, pickSentiment } from '@/lib/kimi/client';
 import { fetchMenu } from '@/lib/apify/client';
@@ -20,6 +20,18 @@ function filterToMains(menu: Menu): Menu {
   const mains = menu.items.filter((m) => !m.subsection_name || !NON_MAIN_SECTION_RE.test(m.subsection_name));
   if (mains.length === 0) return menu;
   return { ...menu, items: mains };
+}
+
+function logEvent(
+  stage: LogStage,
+  kind: LogKind,
+  text: string,
+  extras?: { count?: string; status?: string },
+): { type: 'log'; entry: LogEntry } {
+  const entry: LogEntry = { ts: Date.now(), stage, kind, text };
+  if (extras?.count) entry.count = extras.count;
+  if (extras?.status) entry.status = extras.status;
+  return { type: 'log', entry };
 }
 
 function urlToCandidate(result: BraveResult): RestaurantCandidate | null {
@@ -54,25 +66,62 @@ function composeQuery(prefs: ProfilePreferences): string {
   return parts.join(' ').trim() || 'restaurant';
 }
 
+function countInputs(prefs: ProfilePreferences): number {
+  return (
+    prefs.cuisines.length +
+    prefs.vibes.length +
+    prefs.allergies.length +
+    (prefs.free_text ? 1 : 0) +
+    1 // budget
+  );
+}
+
 function findItemUuid(menu: Menu, dishId: string): string | undefined {
   return menu.items.find((m) => m.id === dishId)?.id;
+}
+
+const EXCLUDE_WINDOW = 5;
+
+interface Excludes {
+  restaurant_uuids: Set<string>;
+  dish_ids: Set<string>;
+  recent_names: { restaurants: string[]; dishes: string[] };
+}
+
+function buildExcludes(recent: RecentPick[]): Excludes {
+  const slice = recent.slice(-EXCLUDE_WINDOW);
+  return {
+    restaurant_uuids: new Set(slice.map((p) => String(p.restaurant_id))),
+    dish_ids: new Set(slice.map((p) => String(p.dish_id))),
+    recent_names: {
+      restaurants: Array.from(new Set(slice.map((p) => p.restaurant_name).filter(Boolean))),
+      dishes: slice.map((p) => p.dish_name).filter(Boolean),
+    },
+  };
 }
 
 export async function* runPipeline(args: {
   inputs: ProfilePreferences;
   address: Address;
+  recent_picks?: RecentPick[];
   signal: AbortSignal;
 }): AsyncGenerator<PipelineEvent, void, void> {
   const { inputs, address, signal } = args;
+  const excludes = buildExcludes(args.recent_picks ?? []);
 
   try {
     yield { type: 'phase', phase: 'address_received' };
+    yield logEvent('looking', 'system', 'job started', {
+      count: `${countInputs(inputs)} inputs`,
+    });
+    yield logEvent('looking', 'info', `detected location · ${address.raw}`);
     if (signal.aborted) {
       yield { type: 'error', error: { code: 'aborted' } };
       return;
     }
 
     yield { type: 'phase', phase: 'searching_restaurants' };
+    yield logEvent('looking', 'info', `searching restaurants · "${composeQuery(inputs)}"`);
     const braveResult = await searchUberEatsNear({
       query: composeQuery(inputs),
       location: address.raw,
@@ -96,11 +145,47 @@ export async function* runPipeline(args: {
       };
       return;
     }
+    // Brave mixes /store/<slug>/<uuid> pages with /neighborhood/... directory
+    // pages. Only the former map to actual restaurants — drop the rest before
+    // either Kimi sees them or excludes apply.
+    const storeOnly = braveResult.value.filter((r) => STORE_UUID_RE.test(r.url));
+    if (storeOnly.length === 0) {
+      yield {
+        type: 'error',
+        error: { code: 'no_candidates', message: 'limited coverage in your area' },
+      };
+      return;
+    }
+    yield logEvent('looking', 'system', 'found candidates', {
+      count: `${storeOnly.length} restaurants`,
+    });
+
+    // Hard filter: drop restaurants the diner just had. If the filter empties
+    // the pool (rare — small market, or all 5 most-recent picks were here),
+    // fall back to the unfiltered store list rather than failing.
+    const filteredByExclude = excludes.restaurant_uuids.size > 0
+      ? storeOnly.filter((r) => {
+          const m = r.url.match(STORE_UUID_RE);
+          return !m?.[1] || !excludes.restaurant_uuids.has(m[1]);
+        })
+      : storeOnly;
+    const candidatePool = filteredByExclude.length > 0 ? filteredByExclude : storeOnly;
+    if (excludes.restaurant_uuids.size > 0) {
+      const dropped = storeOnly.length - candidatePool.length;
+      if (dropped > 0) {
+        yield logEvent('looking', 'flag', `skipping recent restaurants`, { count: `${dropped}` });
+      }
+    }
+    for (const r of candidatePool.slice(0, 6)) {
+      yield logEvent('looking', 'read', `read listing · ${r.title}`);
+    }
 
     yield { type: 'phase', phase: 'picking_candidates' };
+    yield logEvent('matching', 'system', 'matching against your prefs…');
     const pickResult = await pickCandidates({
       inputs,
-      candidates: braveResult.value,
+      candidates: candidatePool,
+      avoid_restaurants: excludes.recent_names.restaurants,
       signal,
     });
     if (signal.aborted) {
@@ -113,7 +198,7 @@ export async function* runPipeline(args: {
     }
 
     const candidatesByUrl = new Map<string, RestaurantCandidate>();
-    for (const r of braveResult.value) {
+    for (const r of candidatePool) {
       const c = urlToCandidate(r);
       if (c) candidatesByUrl.set(r.url, c);
     }
@@ -131,9 +216,14 @@ export async function* runPipeline(args: {
       hero_url: hero.url,
       alternative_urls: alternatives.map((a) => a.candidate.url),
     });
+    yield logEvent('matching', 'pick', `shortlisted · ${hero.name}`);
+    for (const a of alternatives) {
+      yield logEvent('matching', 'pick', `shortlisted · ${a.candidate.name}`, { status: a.tag });
+    }
     yield { type: 'candidates', hero, alternatives };
 
     yield { type: 'phase', phase: 'fetching_menu' };
+    yield logEvent('matching', 'system', 'reading menus…');
     const menuChain = [hero, ...alternatives.map((a) => a.candidate)];
     let chosen: { restaurant: RestaurantCandidate; menu: Menu } | null = null;
     let lastFetchError: ApifyError | null = null;
@@ -148,9 +238,13 @@ export async function* runPipeline(args: {
           restaurant: candidate,
           menu: { ...menuResult.value, restaurant_id: candidate.restaurant_id },
         };
+        yield logEvent('matching', 'read', `read menu · ${candidate.name}`, {
+          count: `${menuResult.value.items.length} dishes`,
+        });
         break;
       }
       lastFetchError = menuResult.error;
+      yield logEvent('matching', 'flag', `skipped · ${candidate.name}`, { status: 'no menu data' });
       log('warn', 'orchestrator_menu_fallback', {
         failed_url: candidate.url,
         error: menuResult.error,
@@ -174,6 +268,7 @@ export async function* runPipeline(args: {
       menu: chosen.menu,
       candidates: menuChain,
       declared_allergies: inputs.allergies,
+      excludes,
       signal,
     });
   } catch (err) {
@@ -243,14 +338,42 @@ async function* runFromFetchedMenu(args: {
   menu: Menu;
   candidates: RestaurantCandidate[];
   declared_allergies: Allergen[];
+  excludes?: Excludes;
   signal: AbortSignal;
 }): AsyncGenerator<PipelineEvent, void, void> {
   const { inputs, restaurant, menu, candidates, declared_allergies, signal } = args;
+  const excludes = args.excludes;
   const env = getEnv();
 
   yield { type: 'phase', phase: 'picking_dish' };
   const mainsMenu = filterToMains(menu);
-  const dishResult = await pickDish({ inputs, restaurant, menu: mainsMenu, signal });
+  const stripped = menu.items.length - mainsMenu.items.length;
+  if (stripped > 0) {
+    yield logEvent('ranking', 'flag', 'filtered out non-mains', { count: `${stripped} items` });
+  }
+  // Hard filter: drop dishes the diner just had. Same fallback rule as the
+  // restaurant filter — never empty the pool.
+  const dishExcludes = excludes?.dish_ids;
+  const candidateMenu =
+    dishExcludes && dishExcludes.size > 0
+      ? (() => {
+          const filtered = mainsMenu.items.filter((m) => !dishExcludes.has(String(m.id)));
+          return filtered.length > 0 ? { ...mainsMenu, items: filtered } : mainsMenu;
+        })()
+      : mainsMenu;
+  if (dishExcludes && candidateMenu.items.length < mainsMenu.items.length) {
+    yield logEvent('ranking', 'flag', 'skipping recent dishes', {
+      count: `${mainsMenu.items.length - candidateMenu.items.length}`,
+    });
+  }
+  yield logEvent('ranking', 'system', `ranking ${candidateMenu.items.length} candidate dishes…`);
+  const dishResult = await pickDish({
+    inputs,
+    restaurant,
+    menu: candidateMenu,
+    avoid_dishes: excludes?.recent_names.dishes ?? [],
+    signal,
+  });
   if (signal.aborted) {
     yield { type: 'error', error: { code: 'aborted' } };
     return;
@@ -260,10 +383,12 @@ async function* runFromFetchedMenu(args: {
     return;
   }
 
+  yield logEvent('ranking', 'pick', `picked · ${dishResult.value.pick.dish_id.slice(0, 8)}`);
   yield { type: 'phase', phase: 'validating' };
+  yield logEvent('ranking', 'info', 'cross-checking allergens…');
   const validated = assertConsistency({
     candidates,
-    menu: mainsMenu,
+    menu: candidateMenu,
     dish_pick: dishResult.value.pick,
     reasoning: dishResult.value.pick.reasoning,
     declared_allergies,
@@ -273,7 +398,7 @@ async function* runFromFetchedMenu(args: {
     yield { type: 'error', error: { code, cause: validated.error } };
     return;
   }
-
+  yield logEvent('ranking', 'info', 'reading diner reviews…');
   const reviewSearch = await searchReviews({ restaurantName: restaurant.name, signal });
   if (signal.aborted) {
     yield { type: 'error', error: { code: 'aborted' } };
@@ -287,6 +412,7 @@ async function* runFromFetchedMenu(args: {
     });
     if (sentimentResult.ok) {
       validated.value.sentiment = sentimentResult.value.sentiment;
+      yield logEvent('ranking', 'info', `diner sentiment · ${sentimentResult.value.sentiment.score.toFixed(1)} / 5`);
     } else {
       log('warn', 'sentiment_failed', { error: sentimentResult.error });
     }
@@ -294,7 +420,7 @@ async function* runFromFetchedMenu(args: {
     log('warn', 'review_search_failed', { error: reviewSearch.error });
   }
 
-  const itemUuid = findItemUuid(menu, dishResult.value.pick.dish_id);
+  const itemUuid = findItemUuid(candidateMenu, dishResult.value.pick.dish_id);
   const deep_link = buildDeepLink({
     restaurant_url: restaurant.url,
     store_uuid: restaurant.store_uuid,
@@ -302,6 +428,7 @@ async function* runFromFetchedMenu(args: {
     ...(env.UBEREATS_AFFILIATE_TAG ? { affiliate_tag: env.UBEREATS_AFFILIATE_TAG } : {}),
   });
 
+  yield logEvent('ready', 'system', 'plating up · opening recommendation');
   yield { type: 'phase', phase: 'done' };
   yield { type: 'result', recommendation: validated.value, deep_link };
 }

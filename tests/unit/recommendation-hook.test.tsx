@@ -38,7 +38,10 @@ function sseStream(events: { event: string; data: unknown }[], delayMs = 0): Res
 
 const server = setupServer();
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
-afterEach(() => server.resetHandlers());
+afterEach(() => {
+  server.resetHandlers();
+  if (typeof sessionStorage !== 'undefined') sessionStorage.clear();
+});
 afterAll(() => server.close());
 
 const mockHero = {
@@ -166,6 +169,47 @@ describe('useRecommendation', () => {
     );
     const { result } = renderHook(() => useRecommendation({ preferences: PREFS, address: ADDR }));
     await waitFor(() => expect(postCount).toBe(1));
+    act(() => result.current.retry());
+    await waitFor(() => expect(postCount).toBe(2));
+  });
+
+  it('hydrates from sessionStorage cache without refetching when fingerprint matches', async () => {
+    let postCount = 0;
+    server.use(
+      http.post(RECOMMEND_URL, () => {
+        postCount += 1;
+        return sseStream([
+          { event: 'phase', data: { type: 'phase', phase: 'searching_restaurants' } },
+          { event: 'result', data: { type: 'result', ...mockResult } },
+        ]);
+      }),
+    );
+    // First mount: pipeline runs, writes cache.
+    const first = renderHook(() => useRecommendation({ preferences: PREFS, address: ADDR }));
+    await waitFor(() => expect(first.result.current.state.kind).toBe('ready'));
+    expect(postCount).toBe(1);
+    first.unmount();
+
+    // Second mount with the same prefs/address: must hydrate from cache, no fetch.
+    const second = renderHook(() => useRecommendation({ preferences: PREFS, address: ADDR }));
+    expect(second.result.current.state.kind).toBe('ready');
+    expect(postCount).toBe(1);
+  });
+
+  it('retry skips the cache and forces a refetch', async () => {
+    let postCount = 0;
+    server.use(
+      http.post(RECOMMEND_URL, () => {
+        postCount += 1;
+        return sseStream([
+          { event: 'phase', data: { type: 'phase', phase: 'searching_restaurants' } },
+          { event: 'result', data: { type: 'result', ...mockResult } },
+        ]);
+      }),
+    );
+    const { result } = renderHook(() => useRecommendation({ preferences: PREFS, address: ADDR }));
+    await waitFor(() => expect(result.current.state.kind).toBe('ready'));
+    expect(postCount).toBe(1);
     act(() => result.current.retry());
     await waitFor(() => expect(postCount).toBe(2));
   });

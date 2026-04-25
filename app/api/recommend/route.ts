@@ -35,10 +35,20 @@ const RestaurantCandidateSchema = z.object({
   rating: z.object({ value: z.number(), count: z.number() }).optional(),
 });
 
+const RecentPickSchema = z.object({
+  timestamp: z.number(),
+  restaurant_id: z.string(),
+  restaurant_name: z.string(),
+  dish_id: z.string(),
+  dish_name: z.string(),
+  feedback: z.enum(['nailed_it', 'not_quite']).nullable(),
+});
+
 const InitialSchema = z.object({
   mode: z.literal('initial'),
   preferences: PreferencesSchema,
   address: AddressSchema,
+  recent_picks: z.array(RecentPickSchema).optional(),
 });
 
 const AlternativeSchema = z.object({
@@ -75,6 +85,7 @@ export async function POST(req: Request): Promise<Response> {
       ? runPipeline({
           inputs: parsed.data.preferences,
           address: parsed.data.address,
+          recent_picks: (parsed.data.recent_picks ?? []) as never,
           signal: controller.signal,
         })
       : runAlternative({

@@ -89,19 +89,23 @@ function normalizeFlatRows(rows: ActorRow[]): { items: MenuItem[]; restaurantNam
     const name = row.menu_item_name;
     if (!id || !name) continue;
 
-    const priceCents =
-      typeof row.menu_item_price === 'number'
+    const taglineText = row.menu_item_price_tagline?.text;
+    const taglineCents = taglineText ? priceTaglineToCents(taglineText) : 0;
+    const numericCents =
+      typeof row.menu_item_price === 'number' && row.menu_item_price > 0
         ? row.menu_item_price
-        : row.menu_item_price_tagline?.text
-        ? priceTaglineToCents(row.menu_item_price_tagline.text)
-        : 0;
+        : taglineCents;
 
     const item: MenuItem = {
       id: id as DishId,
       name,
       description: row.menu_item_description ?? '',
-      price_cents: priceCents,
+      price_cents: numericCents,
     };
+    // When neither the numeric field nor the tagline has a real number, surface
+    // the verbatim tagline (e.g. "Priced by add-ons") so the UI can show it
+    // instead of "$0.00".
+    if (numericCents === 0 && taglineText) item.price_label = taglineText;
     if (row.menu_item_image) item.photo_url = row.menu_item_image;
     if (row.subsection_name) item.subsection_name = row.subsection_name;
     items.push(item);

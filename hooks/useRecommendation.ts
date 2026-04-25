@@ -1,15 +1,18 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Address, ProfilePreferences } from '@/lib/profile/types';
+import type { Address, ProfilePreferences, RecentPick } from '@/lib/profile/types';
+import { recordPick } from '@/lib/profile/store';
 import type {
   AlternativeOption,
+  LogEntry,
   PipelineError,
   PipelineEvent,
   PipelinePhase,
 } from '@/lib/pipeline/events';
 import type { RestaurantCandidate } from '@/lib/apify/types';
 import type { ValidatedRecommendation } from '@/lib/pipeline/validator';
+import { clearCache, fingerprint, readCache, writeCache } from '@/lib/result/cache';
 
 export type RecommendationState =
   | { kind: 'idle' }
@@ -18,9 +21,17 @@ export type RecommendationState =
   | { kind: 'ready'; recommendation: ValidatedRecommendation; deep_link: string }
   | { kind: 'error'; error: PipelineError };
 
+export interface RecommendationView {
+  state: RecommendationState;
+  logEntries: LogEntry[];
+  selectAlternative: (index: 0 | 1 | 2) => void;
+  retry: () => void;
+}
+
 type RecommendArgs = {
   preferences: ProfilePreferences;
   address: Address;
+  recent_picks?: RecentPick[];
 };
 
 async function readSseStream(
@@ -59,12 +70,16 @@ async function readSseStream(
   }
 }
 
-export function useRecommendation(args: RecommendArgs): {
-  state: RecommendationState;
-  selectAlternative: (index: 0 | 1 | 2) => void;
-  retry: () => void;
-} {
-  const [state, setState] = useState<RecommendationState>({ kind: 'idle' });
+export function useRecommendation(args: RecommendArgs): RecommendationView {
+  const [state, setState] = useState<RecommendationState>(() => {
+    if (typeof window === 'undefined') return { kind: 'idle' };
+    const cached = readCache();
+    if (cached && cached.fingerprint === fingerprint(args.preferences, args.address)) {
+      return { kind: 'ready', recommendation: cached.recommendation, deep_link: cached.deep_link };
+    }
+    return { kind: 'idle' };
+  });
+  const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const abortRef = useRef<AbortController | null>(null);
   const previewRef = useRef<{ hero: RestaurantCandidate; alternatives: AlternativeOption[] } | null>(
     null,
@@ -74,11 +89,26 @@ export function useRecommendation(args: RecommendArgs): {
     argsRef.current = args;
   });
 
-  const start = useCallback(async (body: unknown) => {
+  const start = useCallback(async (body: unknown, opts?: { skipCache?: boolean }) => {
+    if (!opts?.skipCache) {
+      const fp = fingerprint(argsRef.current.preferences, argsRef.current.address);
+      const cached = readCache();
+      if (cached && cached.fingerprint === fp) {
+        setState({
+          kind: 'ready',
+          recommendation: cached.recommendation,
+          deep_link: cached.deep_link,
+        });
+        return;
+      }
+    } else {
+      clearCache();
+    }
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
     setState({ kind: 'loading', phase: 'address_received' });
+    setLogEntries([]);
     previewRef.current = null;
 
     try {
@@ -103,6 +133,8 @@ export function useRecommendation(args: RecommendArgs): {
             setState((prev) =>
               prev.kind === 'previewing' ? prev : { kind: 'loading', phase: event.phase },
             );
+          } else if (event.type === 'log') {
+            setLogEntries((prev) => [...prev, event.entry]);
           } else if (event.type === 'candidates') {
             previewRef.current = { hero: event.hero, alternatives: event.alternatives };
             setState({ kind: 'previewing', hero: event.hero, alternatives: event.alternatives });
@@ -111,6 +143,20 @@ export function useRecommendation(args: RecommendArgs): {
               kind: 'ready',
               recommendation: event.recommendation,
               deep_link: event.deep_link,
+            });
+            writeCache({
+              fingerprint: fingerprint(argsRef.current.preferences, argsRef.current.address),
+              recommendation: event.recommendation,
+              deep_link: event.deep_link,
+              saved_at: Date.now(),
+            });
+            recordPick({
+              timestamp: Date.now(),
+              restaurant_id: event.recommendation.restaurant.restaurant_id,
+              restaurant_name: event.recommendation.restaurant.name,
+              dish_id: event.recommendation.dish.id,
+              dish_name: event.recommendation.dish.name,
+              feedback: null,
             });
           } else if (event.type === 'error') {
             setState({ kind: 'error', error: event.error });
@@ -132,7 +178,12 @@ export function useRecommendation(args: RecommendArgs): {
     // controlled subscription pattern (the SSE stream IS the external system per
     // useEffect's intended use). The lint rule's heuristic doesn't model that.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void start({ mode: 'initial', preferences: args.preferences, address: args.address });
+    void start({
+      mode: 'initial',
+      preferences: args.preferences,
+      address: args.address,
+      recent_picks: args.recent_picks ?? [],
+    });
     return () => {
       abortRef.current?.abort();
     };
@@ -147,23 +198,30 @@ export function useRecommendation(args: RecommendArgs): {
       if (!preview) return;
       const alt = preview.alternatives[index];
       if (!alt) return;
-      void start({
-        mode: 'alternative',
-        preferences: argsRef.current.preferences,
-        declared_allergies: argsRef.current.preferences.allergies,
-        alternative: alt.candidate,
-      });
+      void start(
+        {
+          mode: 'alternative',
+          preferences: argsRef.current.preferences,
+          declared_allergies: argsRef.current.preferences.allergies,
+          alternative: alt.candidate,
+        },
+        { skipCache: true },
+      );
     },
     [start],
   );
 
   const retry = useCallback(() => {
-    void start({
-      mode: 'initial',
-      preferences: argsRef.current.preferences,
-      address: argsRef.current.address,
-    });
+    void start(
+      {
+        mode: 'initial',
+        preferences: argsRef.current.preferences,
+        address: argsRef.current.address,
+        recent_picks: argsRef.current.recent_picks ?? [],
+      },
+      { skipCache: true },
+    );
   }, [start]);
 
-  return { state, selectAlternative, retry };
+  return { state, logEntries, selectAlternative, retry };
 }

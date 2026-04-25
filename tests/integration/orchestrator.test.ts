@@ -94,7 +94,7 @@ describe('runPipeline happy path', () => {
     const controller = new AbortController();
     const events = await collect(runPipeline({ inputs: PREFS, address: ADDRESS, signal: controller.signal }));
 
-    const types = events.map((e) => e.type);
+    const types = events.map((e) => e.type).filter((t) => t !== 'log');
     expect(types).toEqual([
       'phase',
       'phase',
@@ -106,6 +106,10 @@ describe('runPipeline happy path', () => {
       'phase',
       'result',
     ]);
+
+    const logs = events.filter((e): e is Extract<PipelineEvent, { type: 'log' }> => e.type === 'log');
+    expect(logs.length).toBeGreaterThan(0);
+    expect(logs[0]?.entry.stage).toBe('looking');
 
     const phases = events
       .filter((e): e is Extract<PipelineEvent, { type: 'phase' }> => e.type === 'phase')
@@ -268,5 +272,80 @@ describe('runAlternative', () => {
     const result = events.find((e): e is Extract<PipelineEvent, { type: 'result' }> => e.type === 'result');
     expect(result).toBeDefined();
     expect(result!.recommendation.restaurant.url).toContain('ippudo');
+  });
+});
+
+describe('runPipeline excludes', () => {
+  it('drops Brave candidates whose store_uuid matches a recent pick', async () => {
+    let candidatesPrompt: string | null = null;
+    server.use(
+      http.get(BRAVE_URL, () => HttpResponse.json(BRAVE_RESPONSE)),
+      http.post(KIMI_URL, async ({ request }) => {
+        const body = (await request.json()) as { messages: { content: string }[] };
+        const userMsg = body.messages.find((m) => m.content.includes('Candidate restaurants'));
+        if (userMsg) {
+          candidatesPrompt = userMsg.content;
+          return HttpResponse.json(
+            kimiBody({
+              hero_url: 'https://www.ubereats.com/store/ippudo/def',
+              alternatives: [
+                { url: 'https://www.ubereats.com/store/marufuku/ghi', tag: 'lighter' },
+                { url: 'https://www.ubereats.com/store/hinodeya/jkl', tag: 'spicier' },
+                { url: 'https://www.ubereats.com/store/marufuku/ghi', tag: 'cheaper' },
+              ],
+            }),
+          );
+        }
+        return HttpResponse.json(kimiBody(VALID_DISH_PICK));
+      }),
+      http.post(APIFY_URL, () => HttpResponse.json(APIFY_RESPONSE)),
+    );
+
+    const events = await collect(
+      runPipeline({
+        inputs: PREFS,
+        address: ADDRESS,
+        recent_picks: [
+          {
+            timestamp: 1,
+            restaurant_id: 'abc' as RestaurantId,
+            restaurant_name: 'Mensho',
+            dish_id: 'd-old' as never,
+            dish_name: 'Old Tonkotsu',
+            feedback: null,
+          },
+        ],
+        signal: new AbortController().signal,
+      }),
+    );
+
+    expect(candidatesPrompt).toBeTruthy();
+    expect(candidatesPrompt!).not.toContain('https://www.ubereats.com/store/mensho/abc');
+    expect(candidatesPrompt!).toContain('Diner just had: Mensho');
+
+    const result = events.find((e): e is Extract<PipelineEvent, { type: 'result' }> => e.type === 'result');
+    expect(result?.recommendation.restaurant.url).not.toContain('mensho');
+  });
+
+  it('falls back to unfiltered when every candidate is excluded', async () => {
+    server.use(...happyPathHandlers());
+    const events = await collect(
+      runPipeline({
+        inputs: PREFS,
+        address: ADDRESS,
+        recent_picks: BRAVE_RESPONSE.web.results.map((r, i) => ({
+          timestamp: i,
+          restaurant_id: r.url.split('/').pop()! as RestaurantId,
+          restaurant_name: r.title,
+          dish_id: `dx-${i}` as never,
+          dish_name: `dish ${i}`,
+          feedback: null,
+        })),
+        signal: new AbortController().signal,
+      }),
+    );
+    const result = events.find((e): e is Extract<PipelineEvent, { type: 'result' }> => e.type === 'result');
+    expect(result).toBeDefined();
+    expect(result!.recommendation.restaurant.url).toContain('mensho');
   });
 });

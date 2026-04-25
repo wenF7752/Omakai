@@ -4,6 +4,11 @@ export interface MenuItem {
   id: DishId;
   name: string;
   price_cents: number;
+  // Verbatim price text from UberEats when the listing has no flat numeric
+  // price — e.g. "Priced by add-ons" for configurator-style menus where the
+  // total depends on customizations. When present, render this instead of
+  // the formatted price_cents (which is 0 in this state).
+  price_label?: string;
   description: string;
   ingredients?: string[];
   allergens?: Allergen[];

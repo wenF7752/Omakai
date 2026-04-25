@@ -8,10 +8,13 @@
   --a-mist: #f3e8d2;
   --a-peach: #ffb89a;
   --a-peach-deep: #ff8a5c;
+  --a-peach-deeper: #ff7244;
   --a-butter: #f7d65a;
   --a-sage: #b6cfa3;
   --a-sage-deep: #7ea36a;
+  --a-flag: #c47b3a;
   --a-ink: #2a1f17;
+  --a-ink-dim: #2a1f1718;
 }
 
 /* Expose Yuzu palette as Tailwind 4 utilities (bg-cream, text-ink, etc.). */
@@ -95,6 +98,11 @@ body {
   51%, 100% { opacity: 0.2; }
 }
 
+@keyframes shimmer-stripe {
+  0% { background-position: 0 0; }
+  100% { background-position: 32px 0; }
+}
+
 /* ─────────────── Animation utility classes ─────────────── */
 
 .wobble { animation: wobble 3s ease-in-out infinite; }
@@ -106,6 +114,7 @@ body {
 .pop-in { animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards; }
 .marquee { animation: marquee 22s linear infinite; }
 .blink { animation: blink 1s step-end infinite; }
+.shimmer-stripe { animation: shimmer-stripe 1s linear infinite; }
 
 /* ─────────────── Sticker shadow utility ─────────────── */
 
@@ -128,6 +137,7 @@ body {
 [data-motion="reduce"] .slide-up,
 [data-motion="reduce"] .pop-in,
 [data-motion="reduce"] .marquee,
-[data-motion="reduce"] .blink {
+[data-motion="reduce"] .blink,
+[data-motion="reduce"] .shimmer-stripe {
   animation: none;
 }

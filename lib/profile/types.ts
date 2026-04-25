@@ -16,6 +16,7 @@ export interface ProfilePreferences {
 export interface RecentPick {
   timestamp: number;
   restaurant_id: RestaurantId;
+  restaurant_name: string;
   dish_id: DishId;
   dish_name: string;
   feedback: FeedbackKind | null;

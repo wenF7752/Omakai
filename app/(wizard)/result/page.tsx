@@ -1,21 +1,31 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { HeroCard } from '@/components/result/HeroCard';
 import { AlternativesStrip } from '@/components/result/AlternativesStrip';
 import { useProfile } from '@/hooks/useProfile';
 import { useRecommendation } from '@/hooks/useRecommendation';
+import { clearCache } from '@/lib/result/cache';
 
 export default function ResultPage() {
   const router = useRouter();
   const profile = useProfile();
   const [loadingAlt, setLoadingAlt] = useState<0 | 1 | 2 | null>(null);
 
-  const { state, selectAlternative, retry } = useRecommendation({
+  const { state, selectAlternative } = useRecommendation({
     preferences: profile.preferences,
     address: profile.address ?? { raw: '' },
+    recent_picks: profile.recent_picks,
   });
+
+  // "try another" should re-run the full pipeline through the loading screen,
+  // not refetch in place on /result. Clearing the cache prevents /thinking
+  // from instantly hydrating from the previous result and bouncing back.
+  const tryAnother = useCallback(() => {
+    clearCache();
+    router.push('/thinking');
+  }, [router]);
 
   useEffect(() => {
     // Clearing the alt-loading indicator once a fresh `ready` arrives is a
@@ -43,7 +53,7 @@ export default function ResultPage() {
         </p>
         <button
           type="button"
-          onClick={retry}
+          onClick={tryAnother}
           style={{
             padding: '14px 28px',
             border: '2.5px solid var(--a-ink)',
@@ -67,7 +77,7 @@ export default function ResultPage() {
       <HeroCard
         recommendation={state.recommendation}
         deep_link={state.deep_link}
-        onTryAnother={retry}
+        onTryAnother={tryAnother}
         declared_allergies_present={profile.preferences.allergies.length > 0}
       />
       <AlternativesStrip

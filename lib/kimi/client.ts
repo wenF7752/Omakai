@@ -115,9 +115,14 @@ async function callKimi(args: {
 export async function pickCandidates(args: {
   inputs: ProfilePreferences;
   candidates: BraveResult[];
+  avoid_restaurants?: string[];
   signal?: AbortSignal;
 }): Promise<Result<{ pick: RestaurantPick; usage: KimiUsage }, KimiError>> {
-  const userPrompt = buildCandidatesPrompt({ inputs: args.inputs, candidates: args.candidates });
+  const userPrompt = buildCandidatesPrompt({
+    inputs: args.inputs,
+    candidates: args.candidates,
+    avoid_restaurants: args.avoid_restaurants ?? [],
+  });
   const result = await parseAndRetry({
     schema: RestaurantPickSchema,
     invoke: (reinforcement) =>
@@ -131,12 +136,14 @@ export async function pickDish(args: {
   inputs: ProfilePreferences;
   restaurant: RestaurantCandidate;
   menu: Menu;
+  avoid_dishes?: string[];
   signal?: AbortSignal;
 }): Promise<Result<{ pick: DishPick; usage: KimiUsage }, KimiError>> {
   const userPrompt = buildDishPrompt({
     inputs: args.inputs,
     restaurant: args.restaurant,
     menu: args.menu,
+    avoid_dishes: args.avoid_dishes ?? [],
   });
   log('info', 'kimi_dish_prompt', {
     menu_ids: args.menu.items.map((m) => m.id),

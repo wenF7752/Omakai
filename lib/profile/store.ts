@@ -17,6 +17,7 @@ const PreferencesSchema = z.object({
 const RecentPickSchema = z.object({
   timestamp: z.number(),
   restaurant_id: z.string(),
+  restaurant_name: z.string().default(''),
   dish_id: z.string(),
   dish_name: z.string(),
   feedback: z.enum(['nailed_it', 'not_quite']).nullable(),
@@ -101,6 +102,17 @@ export function clearProfile(): void {
   localStorage.removeItem(PROFILE_KEY);
   cachedSnapshot = null;
   cachedRaw = null;
+  notifyListeners();
+}
+
+// Append a freshly-shown pick (feedback still null) to history. Drives the
+// retry-diversity excludes — the orchestrator avoids the most recent
+// restaurants and dishes when a user clicks "try another". Trimmed to 20
+// entries so the list doesn't grow unbounded across long sessions.
+export function recordPick(pick: RecentPick): void {
+  const profile = getProfile();
+  const next: RecentPick[] = [...profile.recent_picks, pick].slice(-20);
+  writeStorage({ ...profile, recent_picks: next });
   notifyListeners();
 }
 

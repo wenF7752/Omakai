@@ -15,11 +15,16 @@ The user message will state which schema applies (RestaurantPick or DishPick). M
 export function buildCandidatesPrompt(args: {
   inputs: ProfilePreferences;
   candidates: BraveResult[];
+  avoid_restaurants?: string[];
 }): string {
   const { inputs, candidates } = args;
+  const avoid = args.avoid_restaurants ?? [];
   const candidateLines = candidates
     .map((c, i) => `${i + 1}. ${c.title} — ${c.url}\n   ${c.description}`)
     .join('\n');
+  const avoidLine = avoid.length > 0
+    ? `\nDiner just had: ${avoid.join(', ')}. Pick somewhere noticeably different — different cuisine, different style, or different neighborhood.`
+    : '';
   return [
     'Schema: RestaurantPick { hero_url: string (url, must be one of the candidates), alternatives: Array<{ url: string, tag: "lighter"|"spicier"|"cheaper" }> length 3 }',
     '',
@@ -29,6 +34,7 @@ export function buildCandidatesPrompt(args: {
     `- budget: ${inputs.budget_tier}`,
     `- allergies: ${inputs.allergies.join(', ') || 'none declared'}`,
     `- free text: ${inputs.free_text || '(empty)'}`,
+    avoidLine,
     '',
     'Candidate restaurants (pick exactly 1 hero + 3 alternatives, each with a distinct tag):',
     candidateLines,
@@ -41,12 +47,17 @@ export function buildDishPrompt(args: {
   inputs: ProfilePreferences;
   restaurant: RestaurantCandidate;
   menu: Menu;
+  avoid_dishes?: string[];
 }): string {
   const { inputs, restaurant, menu } = args;
+  const avoid = args.avoid_dishes ?? [];
   const itemLines = menu.items
     .map((m) => {
       const section = m.subsection_name ? ` [${m.subsection_name}]` : '';
-      return `- id="${m.id}" | ${m.name}${section} | $${(m.price_cents / 100).toFixed(2)} | ${m.description}`;
+      const price = m.price_cents > 0
+        ? `$${(m.price_cents / 100).toFixed(2)}`
+        : m.price_label ?? 'price unknown';
+      return `- id="${m.id}" | ${m.name}${section} | ${price} | ${m.description}`;
     })
     .join('\n');
   return [
@@ -60,6 +71,9 @@ export function buildDishPrompt(args: {
     `- free text: ${inputs.free_text || '(empty)'}`,
     '',
     `Restaurant: ${restaurant.name}`,
+    avoid.length > 0
+      ? `Diner just had: ${avoid.join(', ')}. Pick something noticeably different in style or texture.`
+      : '',
     'Menu items:',
     itemLines,
     '',
@@ -68,7 +82,9 @@ export function buildDishPrompt(args: {
     '- Pick a substantial main course / entrée — something that stands as a meal on its own. Do NOT pick an appetizer, side, sauce, drink, dessert, or topping.',
     '- If allergies are declared and any candidate item is ambiguous, prefer a clearly safe item or set warning.',
     '- Output JSON only.',
-  ].join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
 
 export function buildSentimentPrompt(args: {

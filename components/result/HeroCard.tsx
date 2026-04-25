@@ -12,8 +12,10 @@ export interface HeroCardProps {
   declared_allergies_present?: boolean;
 }
 
-function formatPrice(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
+function formatPrice(cents: number, label?: string): string {
+  if (cents > 0) return `$${(cents / 100).toFixed(2)}`;
+  if (label) return label;
+  return '—';
 }
 
 export function HeroCard({
@@ -75,7 +77,7 @@ export function HeroCard({
         <div style={{ fontSize: 15, opacity: 0.7 }}>{dish.description}</div>
 
         <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>
-          <Callout label="PRICE" value={formatPrice(dish.price_cents)} bg="var(--a-butter)" />
+          <Callout label="PRICE" value={formatPrice(dish.price_cents, dish.price_label)} bg="var(--a-butter)" />
           <Callout label="ETA" value="~25 min" bg="var(--a-peach)" />
           {restaurant.rating && (
             <Callout

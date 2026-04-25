@@ -19,6 +19,7 @@ export default function FeedbackPage() {
     const pick: RecentPick = {
       timestamp: Date.now(),
       restaurant_id: ('last' as unknown) as RestaurantId,
+      restaurant_name: 'last pick',
       dish_id: ('last' as unknown) as DishId,
       dish_name: 'last pick',
       feedback,

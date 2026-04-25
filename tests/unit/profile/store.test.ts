@@ -15,6 +15,7 @@ function makePick(feedback: 'nailed_it' | 'not_quite', i: number): RecentPick {
   return {
     timestamp: 1_700_000_000_000 + i,
     restaurant_id: `r-${i}` as RestaurantId,
+    restaurant_name: `Restaurant ${i}`,
     dish_id: `d-${i}` as DishId,
     dish_name: `Dish ${i}`,
     feedback,

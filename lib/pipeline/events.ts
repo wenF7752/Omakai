@@ -27,8 +27,21 @@ export type PipelineError =
   | { code: 'aborted' }
   | { code: 'unknown'; cause: string };
 
+export type LogStage = 'looking' | 'matching' | 'ranking' | 'ready';
+export type LogKind = 'system' | 'info' | 'read' | 'flag' | 'pick';
+
+export interface LogEntry {
+  ts: number;
+  stage: LogStage;
+  kind: LogKind;
+  text: string;
+  count?: string;
+  status?: string;
+}
+
 export type PipelineEvent =
   | { type: 'phase'; phase: PipelinePhase }
+  | { type: 'log'; entry: LogEntry }
   | { type: 'candidates'; hero: RestaurantCandidate; alternatives: AlternativeOption[] }
   | { type: 'result'; recommendation: ValidatedRecommendation; deep_link: string }
   | { type: 'error'; error: PipelineError };
