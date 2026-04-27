@@ -8,21 +8,21 @@ import { WizardButton } from '@/components/wizard/WizardButton';
 
 export default function LandingPage() {
   return (
-    <div style={{ position: 'relative', paddingTop: 60, minHeight: '100vh' }}>
-      <div
-        style={{ position: 'absolute', top: 70, right: 18, transform: 'rotate(12deg)' }}
-        className="sticker float-y"
-      >
-        <StickerBadge text="OMABITE" size={68} color="var(--a-butter)" textColor="var(--a-ink)" />
-      </div>
-      <div
-        style={{ position: 'absolute', top: 240, left: -10, transform: 'rotate(-18deg)' }}
-        className="sticker"
-      >
-        <Chopsticks size={70} color="var(--a-sage-deep)" />
-      </div>
+    <div style={{ paddingTop: 60, minHeight: '100vh' }}>
+      <div style={{ position: 'relative', padding: '20px 24px 0', maxWidth: 480, margin: '0 auto' }}>
+        <div
+          style={{ position: 'absolute', top: 10, right: 18, transform: 'rotate(12deg)' }}
+          className="sticker float-y"
+        >
+          <StickerBadge text="OMABITE" size={68} color="var(--a-butter)" textColor="var(--a-ink)" />
+        </div>
+        <div
+          style={{ position: 'absolute', top: 180, left: -10, transform: 'rotate(-18deg)' }}
+          className="sticker"
+        >
+          <Chopsticks size={70} color="var(--a-sage-deep)" />
+        </div>
 
-      <div style={{ padding: '20px 24px 0', maxWidth: 480, margin: '0 auto' }}>
         <div className="mono" style={{ fontSize: 11, letterSpacing: 2, opacity: 0.6 }}>
           OMABITE.FOOD
         </div>
